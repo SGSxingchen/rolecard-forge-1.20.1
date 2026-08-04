@@ -107,10 +107,10 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
-      - name: 安装 Xvfb、Mesa 与窗口关闭工具
+      - name: 安装 Xvfb、Mesa 与窗口管理器
         run: |
           sudo apt-get update
-          sudo apt-get install --yes xvfb mesa-utils xdotool
+          sudo apt-get install --yes xvfb mesa-utils xdotool openbox
       - name: 启动真实 Forge Client 并在初始化后正常关闭
         run: bash scripts/ci/client-smoke.sh
       - name: 无论结果均上传客户端日志

@@ -18,6 +18,7 @@ set -m
 # 关闭 MIT-SHM：Hosted Runner 的 Xvfb 共享内存路径会令 LWJGL 报 BadDrawable，软件 Mesa 不需要该扩展。
 xvfb-run -a -s '-screen 0 1280x720x24 +extension GLX -extension MIT-SHM' bash -c '
   set -Eeuo pipefail
+  openbox >/dev/null 2>&1 &
   ./gradlew --no-daemon runClient &
   client=$!
   while [[ ! -f "ci-artifacts/client-smoke/close-request" ]]; do
@@ -26,7 +27,10 @@ xvfb-run -a -s '-screen 0 1280x720x24 +extension GLX -extension MIT-SHM' bash -c
   done
   window=$(xdotool search --name "Minecraft" 2>/dev/null | head -n1 || true)
   [[ -n "$window" ]] || { echo "未找到 Minecraft 窗口，不能确认已进入可交互客户端" >&2; exit 1; }
-  xdotool windowclose "$window"
+  # 由窗口管理器发送 Alt+F4（WM_DELETE）而非直接 XDestroyWindow，
+  # 让 GLFW/Minecraft 先处理关闭事件，避免 Xvfb 下 BadDrawable 渲染竞态。
+  xdotool windowactivate --sync "$window"
+  xdotool key --window "$window" alt+F4
   for _ in {1..90}; do kill -0 "$client" 2>/dev/null || break; sleep 1; done
   kill -0 "$client" 2>/dev/null && { echo "客户端未在窗口关闭后正常退出" >&2; exit 1; }
   wait "$client"
