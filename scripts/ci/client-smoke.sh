@@ -15,7 +15,8 @@ export _JAVA_AWT_WM_NONREPARENTING=1
 cd "$ROOT"
 set -m
 # xdotool 必须与 Client 共享 xvfb-run 创建的 DISPLAY/Xauthority，因此将关闭动作置于同一子 shell。
-xvfb-run -a -s '-screen 0 1280x720x24 +extension GLX' bash -c '
+# 关闭 MIT-SHM：Hosted Runner 的 Xvfb 共享内存路径会令 LWJGL 报 BadDrawable，软件 Mesa 不需要该扩展。
+xvfb-run -a -s '-screen 0 1280x720x24 +extension GLX -extension MIT-SHM' bash -c '
   set -Eeuo pipefail
   ./gradlew --no-daemon runClient &
   client=$!
