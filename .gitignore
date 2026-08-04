@@ -23,6 +23,8 @@ logs
 crash-reports
 .vscode
 *.log
+__pycache__/
+*.py[cod]
 
 # other
 eclipse
