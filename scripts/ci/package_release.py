@@ -38,6 +38,8 @@ try:
     with zipfile.ZipFile(jar) as archive:
         if "META-INF/mods.toml" not in archive.namelist():
             fail("Jar 中缺少 META-INF/mods.toml")
+        if any(name.endswith("ClientSmokeProbe.class") for name in archive.namelist()):
+            fail("CI 客户端探针被错误打入发布 Jar")
         mods = tomllib.loads(archive.read("META-INF/mods.toml").decode("utf-8"))
         mods_list = mods.get("mods", [])
         if not any(item.get("modId") == mod_id for item in mods_list):

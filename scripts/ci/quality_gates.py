@@ -198,6 +198,32 @@ def check_dedicated_server_contract() -> None:
             fail(f"专服脚本缺少固定版本/下载完整性门禁: {needle}")
 
 
+def check_client_smoke_probe() -> None:
+    """客户端自动退出必须由不参与发布的 CI 源集完成，不能以销毁 X 窗口伪造成功。"""
+    probe = ROOT / "src/ci/java/com/rolecard/ci/ClientSmokeProbe.java"
+    build = read(ROOT / "build.gradle")
+    client_script = read(ROOT / "scripts/ci/client-smoke.sh")
+    if not probe.is_file():
+        fail("缺少仅 CI 使用的客户端主菜单探针")
+        return
+    probe_text = read(probe)
+    required_probe = (
+        "TitleScreen",
+        "TickEvent.ClientTickEvent",
+        "ROLECARD_CI_TITLE_SCREEN_READY",
+        "Minecraft.getInstance().stop()",
+        "src/ci",
+    )
+    for needle in required_probe:
+        if needle not in probe_text and needle != "src/ci":
+            fail(f"客户端探针缺少主菜单正常退出契约: {needle}")
+    for needle in ("sourceSets {", "java.srcDir 'src/ci/java'", "source sourceSets.ci", "ciClasses"):
+        if needle not in build:
+            fail(f"build.gradle 缺少 CI-only 客户端探针源集配置: {needle}")
+    if "ROLECARD_CI_TITLE_SCREEN_READY" not in client_script or "windowclose" in client_script:
+        fail("客户端 smoke 必须等待主菜单探针且不得直接销毁 X 窗口")
+
+
 def main() -> int:
     props = properties(ROOT / "gradle.properties")
     check_metadata(props)
@@ -206,6 +232,7 @@ def main() -> int:
     check_common_side_and_network()
     check_wrapper()
     check_dedicated_server_contract()
+    check_client_smoke_probe()
     if ERRORS:
         print("质量门禁失败：", file=sys.stderr)
         for error in ERRORS:
