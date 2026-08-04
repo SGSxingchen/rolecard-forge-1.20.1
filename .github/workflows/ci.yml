@@ -1,0 +1,147 @@
+name: Forge 1.20.1 CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# 不发布 Release；令牌只保留检出源码所需的最小权限。
+permissions:
+  contents: read
+
+concurrency:
+  group: forge-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  quality-gates:
+    name: 质量门禁（纯静态）
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: 执行资源、元数据、侧别、网络和 Wrapper 门禁
+        run: python3 scripts/ci/quality_gates.py
+
+  build:
+    name: 构建发布包（Java 17）
+    needs: quality-gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: clean/build（仅 Hosted Runner）
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p ci-artifacts/build
+          ./gradlew --no-daemon clean build 2>&1 | tee ci-artifacts/build/gradle-build.log
+      - name: 筛选唯一发布 Jar 并生成 SHA-256
+        run: python3 scripts/ci/package_release.py
+      - name: 上传唯一可发布 Jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: rolecard-release-jar
+          if-no-files-found: error
+          retention-days: 14
+          path: dist/rolecard-*.jar
+      - name: 上传 SHA-256 清单
+        uses: actions/upload-artifact@v4
+        with:
+          name: rolecard-sha256
+          if-no-files-found: error
+          retention-days: 14
+          path: dist/SHA256SUMS
+      - name: 无论结果均上传构建日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          if-no-files-found: warn
+          retention-days: 14
+          path: ci-artifacts/build/gradle-build.log
+
+  dedicated-server:
+    name: 真实 Forge 专服 Smoke
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: 下载本次唯一发布包
+        uses: actions/download-artifact@v4
+        with:
+          name: rolecard-release-jar
+          path: dist
+      - name: 安装、启动并停止固定版本 Forge 专服
+        run: bash scripts/ci/dedicated-server-smoke.sh dist
+      - name: 无论结果均上传专服日志与安装器 SHA-256
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dedicated-server-logs
+          if-no-files-found: warn
+          retention-days: 14
+          path: ci-artifacts/dedicated-server
+
+  client-smoke:
+    name: 真实 Forge 客户端 Smoke（Xvfb/Mesa）
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: 安装 Xvfb、Mesa 与窗口关闭工具
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes xvfb mesa-utils xdotool
+      - name: 启动真实 Forge Client 并在初始化后正常关闭
+        run: bash scripts/ci/client-smoke.sh
+      - name: 无论结果均上传客户端日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-smoke-logs
+          if-no-files-found: warn
+          retention-days: 14
+          path: ci-artifacts/client-smoke
+
+  regression-report:
+    name: 回归报告（必需 Job 全绿）
+    if: always()
+    needs: [quality-gates, build, dedicated-server, client-smoke]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: 生成覆盖矩阵并拒绝 failed/skipped/missing
+        env:
+          QUALITY_GATES: ${{ needs.quality-gates.result }}
+          BUILD: ${{ needs.build.result }}
+          DEDICATED_SERVER: ${{ needs.dedicated-server.result }}
+          CLIENT_SMOKE: ${{ needs.client-smoke.result }}
+        run: python3 scripts/ci/regression_report.py
+      - name: 上传回归报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-report
+          if-no-files-found: warn
+          retention-days: 14
+          path: ci-artifacts/regression-report.md
