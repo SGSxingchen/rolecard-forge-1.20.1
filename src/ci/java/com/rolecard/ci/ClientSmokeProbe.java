@@ -41,6 +41,4 @@ public final class ClientSmokeProbe {
             titleScreenTicks = 0;
         }
     }
-
-    private ClientSmokeProbe() {}
 }
