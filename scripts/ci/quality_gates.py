@@ -211,7 +211,7 @@ def check_client_smoke_probe() -> None:
         "TitleScreen",
         "TickEvent.ClientTickEvent",
         "ROLECARD_CI_TITLE_SCREEN_READY",
-        "Minecraft.getInstance().stop()",
+        "minecraft.stop()",
         '@Mod("rolecard_ci_probe")',
         "MinecraftForge.EVENT_BUS.register(this)",
         'ModList.get().isLoaded("rolecard")',
