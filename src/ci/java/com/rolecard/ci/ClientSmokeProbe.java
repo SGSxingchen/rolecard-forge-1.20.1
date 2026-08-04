@@ -1,36 +1,40 @@
 package com.rolecard.ci;
 
-import com.rolecard.RoleCardMod;
+import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
-import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.common.Mod;
+import org.slf4j.Logger;
 
 /**
- * 仅由 GitHub Actions 的 runClient 加载，确认主菜单稳定后请求 Minecraft 主循环正常停止。
- * 该类位于 src/ci，不属于 main source set，发布 Jar 不会包含它。
+ * GitHub Actions 的临时测试模组；确认主菜单稳定后请求 Minecraft 主循环正常停止。
+ * 它被打成单独 Jar 并只拷到 run/mods，发布 Jar 不会包含此类。
  */
-@Mod.EventBusSubscriber(modid = RoleCardMod.MOD_ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@Mod("rolecard_ci_probe")
 public final class ClientSmokeProbe {
+    private static final Logger LOGGER = LogUtils.getLogger();
     private static int titleScreenTicks;
     private static boolean stopping;
 
-    /** 由已被 Forge 扫描到的 RoleCardClient 在 CI 开发运行时反射调用。 */
-    public static void install() {
-        MinecraftForge.EVENT_BUS.register(ClientSmokeProbe.class);
+    public ClientSmokeProbe() {
+        if (!ModList.get().isLoaded("rolecard")) {
+            throw new IllegalStateException("rolecard 未被 Forge Client 加载，拒绝通过 smoke 测试");
+        }
+        MinecraftForge.EVENT_BUS.register(this);
     }
 
     @SubscribeEvent
-    public static void onClientTick(TickEvent.ClientTickEvent event) {
+    public void onClientTick(TickEvent.ClientTickEvent event) {
         if (stopping || event.phase != TickEvent.Phase.END) return;
         if (Minecraft.getInstance().screen instanceof TitleScreen) {
             titleScreenTicks++;
             if (titleScreenTicks >= 40) {
                 stopping = true;
-                RoleCardMod.LOGGER.info("ROLECARD_CI_TITLE_SCREEN_READY: 主菜单已稳定 40 tick，正常退出客户端。");
+                LOGGER.info("ROLECARD_CI_TITLE_SCREEN_READY: rolecard 已加载，主菜单已稳定 40 tick，正常退出客户端。");
                 Minecraft.getInstance().stop();
             }
         } else {

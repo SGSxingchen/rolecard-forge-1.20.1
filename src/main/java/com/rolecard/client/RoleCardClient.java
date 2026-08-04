@@ -15,17 +15,6 @@ import org.lwjgl.glfw.GLFW;
 @Mod.EventBusSubscriber(modid = RoleCardMod.MOD_ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
 public final class RoleCardClient {
     private static final KeyMapping OPEN_KEY = new KeyMapping("key.rolecard.open", GLFW.GLFW_KEY_I, "key.categories.rolecard");
-    // src/ci 的探针不存在于发布 Jar；开发 runClient 存在时才通过反射安装，避免发布代码依赖测试类。
-    static {
-        try {
-            Class<?> probe = Class.forName("com.rolecard.ci.ClientSmokeProbe");
-            probe.getMethod("install").invoke(null);
-        } catch (ClassNotFoundException ignored) {
-            // 正式发布环境没有 CI-only 探针，这是预期行为。
-        } catch (ReflectiveOperationException exception) {
-            RoleCardMod.LOGGER.error("无法安装 CI 客户端 smoke 探针", exception);
-        }
-    }
     @SubscribeEvent public static void registerKey(RegisterKeyMappingsEvent event) { event.register(OPEN_KEY); ClientHooks.install(ClientCardCache::update); ClientHooks.installPublicName(ClientDisplayNames::update); }
 
     @Mod.EventBusSubscriber(modid = RoleCardMod.MOD_ID, value = Dist.CLIENT)
