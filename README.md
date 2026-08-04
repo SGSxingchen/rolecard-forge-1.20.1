@@ -1,5 +1,7 @@
 # 角色卡与六维（RoleCard）
 
+[![Forge 1.20.1 CI](https://github.com/SGSxingchen/rolecard-forge-1.20.1/actions/workflows/ci.yml/badge.svg)](https://github.com/SGSxingchen/rolecard-forge-1.20.1/actions/workflows/ci.yml)
+
 Forge 1.20.1 / Java 17 的服务端权威角色身份卡与六维属性模组。
 
 - 完整安装、命令、配置、数据和扩展说明：[使用与扩展说明](docs/使用与扩展说明.md)
