@@ -212,6 +212,7 @@ def check_client_smoke_probe() -> None:
         "TickEvent.ClientTickEvent",
         "ROLECARD_CI_TITLE_SCREEN_READY",
         "Minecraft.getInstance().stop()",
+        "MinecraftForge.EVENT_BUS.register(ClientSmokeProbe.class)",
         "src/ci",
     )
     for needle in required_probe:
@@ -220,6 +221,9 @@ def check_client_smoke_probe() -> None:
     for needle in ("sourceSets {", "java.srcDir 'src/ci/java'", "source sourceSets.ci", "ciClasses"):
         if needle not in build:
             fail(f"build.gradle 缺少 CI-only 客户端探针源集配置: {needle}")
+    client_bootstrap = read(ROOT / "src/main/java/com/rolecard/client/RoleCardClient.java")
+    if 'Class.forName("com.rolecard.ci.ClientSmokeProbe")' not in client_bootstrap:
+        fail("客户端 bootstrap 未在 CI 开发类路径中安装主菜单探针")
     if "ROLECARD_CI_TITLE_SCREEN_READY" not in client_script or "windowclose" in client_script:
         fail("客户端 smoke 必须等待主菜单探针且不得直接销毁 X 窗口")
 

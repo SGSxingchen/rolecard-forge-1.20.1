@@ -6,6 +6,7 @@ import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 
 /**
@@ -16,6 +17,11 @@ import net.minecraftforge.fml.common.Mod;
 public final class ClientSmokeProbe {
     private static int titleScreenTicks;
     private static boolean stopping;
+
+    /** 由已被 Forge 扫描到的 RoleCardClient 在 CI 开发运行时反射调用。 */
+    public static void install() {
+        MinecraftForge.EVENT_BUS.register(ClientSmokeProbe.class);
+    }
 
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
