@@ -31,7 +31,7 @@ public final class MultiLineBiographyBox extends EditBox {
         return true;
     }
 
-    @Override protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    @Override public void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         graphics.fill(getX(), getY(), getX() + boxWidth, getY() + boxHeight, 0xFF101720);
         graphics.fill(getX(), getY(), getX() + boxWidth, getY() + 1, isFocused() ? 0xFF77BEEA : 0xFF496176);
         List<FormattedCharSequence> lines = textFont.split(Component.literal(getValue()), Math.max(1, boxWidth - 8));
