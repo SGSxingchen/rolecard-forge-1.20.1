@@ -141,14 +141,22 @@ def check_common_side_and_network() -> None:
     if len(packet_names) != len(set(packet_names)):
         fail("发现重复网络包注册")
     directions = dict(registrations)
-    expected = {"CardSyncPacket": "PLAY_TO_CLIENT", "EditIdentityPacket": "PLAY_TO_SERVER", "PublicNamePacket": "PLAY_TO_CLIENT"}
+    expected = {
+        "CardSyncPacket": "PLAY_TO_CLIENT", "PublicNamePacket": "PLAY_TO_CLIENT",
+        "OpenAdminCardPacket": "PLAY_TO_CLIENT", "SaveDraftPacket": "PLAY_TO_SERVER",
+        "AdjustPointsPacket": "PLAY_TO_SERVER", "SubmitCardPacket": "PLAY_TO_SERVER",
+        "AdminReviewActionPacket": "PLAY_TO_SERVER", "AdminSaveCardPacket": "PLAY_TO_SERVER",
+    }
     for name, direction in expected.items():
         if directions.get(name) != direction:
             fail(f"网络包 {name} 方向错误或未注册")
-    c2s = ROOT / "src/main/java/com/rolecard/network/EditIdentityPacket.java"
-    c2s_text = read(c2s) if c2s.exists() else ""
-    if not re.search(r"getSender\(\).*?if\s*\(player\s*!=\s*null\)", c2s_text, re.S):
-        fail("客户端到服务端身份包必须只使用 context.getSender() 且拒绝空发送者")
+    for name, direction in registrations:
+        if direction != "PLAY_TO_SERVER":
+            continue
+        packet = ROOT / "src/main/java/com/rolecard/network" / f"{name}.java"
+        packet_text = read(packet) if packet.exists() else ""
+        if "getSender()" not in packet_text or not re.search(r"if\s*\(\s*(?:player|admin)\s*!=\s*null\s*\)", packet_text):
+            fail(f"客户端到服务端包 {name} 必须只使用 context.getSender() 且拒绝空发送者")
 
 
 def check_wrapper() -> None:

@@ -5,6 +5,7 @@ import com.rolecard.config.RoleCardConfig;
 import com.rolecard.data.CharacterCard;
 import com.rolecard.data.RoleCardCapability;
 import com.rolecard.network.RoleCardNetwork;
+import com.rolecard.review.ReviewQueueSavedData;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -43,7 +44,13 @@ public final class RoleCardEvents {
     }
 
     @SubscribeEvent
-    public void login(PlayerEvent.PlayerLoggedInEvent event) { syncAndApply(event.getEntity()); }
+    public void login(PlayerEvent.PlayerLoggedInEvent event) {
+        syncAndApply(event.getEntity());
+        if (event.getEntity() instanceof ServerPlayer player && player.hasPermissions(2)) {
+            int pending = ReviewQueueSavedData.get(player.server).size();
+            if (pending > 0) player.sendSystemMessage(Component.literal("当前有 " + pending + " 张待审核角色卡；使用 /rolecard review list 查看。"));
+        }
+    }
 
     @SubscribeEvent
     public void respawn(PlayerEvent.PlayerRespawnEvent event) { syncAndApply(event.getEntity()); }
