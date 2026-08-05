@@ -68,6 +68,7 @@ public final class ClientSmokeProbe {
         if (uiPhase >= 1 && uiPhase <= 3 && minecraft.screen instanceof RoleCardScreen player) {
             player.ciShowPage(uiPhase - 1);
             if (!player.ciLayoutWithinSafeArea()) throw new IllegalStateException("玩家页签布局不稳定");
+            if (uiPhase == 3 && !player.ciInitializeStatsTooltip()) throw new IllegalStateException("玩家六维多行 tooltip 初始化失败");
             LOGGER.info("ROLECARD_CI_UI_PLAYER_PAGE_OK: 页签 {} 初始化、切换与稳定 tick 通过。", uiPhase - 1);
             uiPhase++;
             return;
@@ -77,6 +78,7 @@ public final class ClientSmokeProbe {
             AdminRoleCardScreen screen = new AdminRoleCardScreen(UUID.fromString("00000000-0000-0000-0000-000000000001"), "CI_Player", data);
             minecraft.setScreen(screen);
             if (!screen.ciLayoutWithinSafeArea()) throw new IllegalStateException("管理员档案布局越过安全区或分区重叠");
+            if (!screen.ciInitializeStatsTooltip()) throw new IllegalStateException("管理员六维多行 tooltip 初始化失败");
             uiPhase = 5; LOGGER.info("ROLECARD_CI_UI_ADMIN_OPEN: 管理员资料页已初始化。"); return;
         }
         if (uiPhase >= 5 && uiPhase <= 7 && minecraft.screen instanceof AdminRoleCardScreen admin) {

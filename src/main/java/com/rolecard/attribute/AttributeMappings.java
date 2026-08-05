@@ -26,6 +26,8 @@ public final class AttributeMappings {
             StatType.LUCK, List.of(AttributeRule.of("luck", () -> Attributes.LUCK, AttributeModifier.Operation.ADDITION, 0.1, 100)));
 
     public static List<AttributeRule> rules(StatType type) { return RULES.getOrDefault(type, List.of()); }
-    public static double amount(CharacterCard card, StatType type, AttributeRule rule) { return Math.min(card.stat(type), rule.cap()) * rule.coefficient(); }
+    /** 用明确的六维预览值计算，供客户端显示层复用；不改变服务端实际应用语义。 */
+    public static double amount(int statValue, AttributeRule rule) { return Math.min(StatType.clamp(statValue), rule.cap()) * rule.coefficient(); }
+    public static double amount(CharacterCard card, StatType type, AttributeRule rule) { return amount(card.stat(type), rule); }
     private AttributeMappings() {}
 }

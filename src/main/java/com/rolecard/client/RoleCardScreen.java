@@ -1,7 +1,5 @@
 package com.rolecard.client;
 
-import com.rolecard.attribute.AttributeMappings;
-import com.rolecard.attribute.AttributeRule;
 import com.rolecard.data.CharacterCard;
 import com.rolecard.data.ReviewStatus;
 import com.rolecard.data.StatType;
@@ -9,13 +7,11 @@ import com.rolecard.network.AdjustPointsPacket;
 import com.rolecard.network.RoleCardNetwork;
 import com.rolecard.network.SaveDraftPacket;
 import com.rolecard.network.SubmitCardPacket;
-import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.ai.attributes.Attribute;
 
 /** 玩家档案：布局只来自 ArchiveLayout，所有写入仍提交给服务端权威校验。 */
 public final class RoleCardScreen extends Screen {
@@ -90,8 +86,10 @@ public final class RoleCardScreen extends Screen {
         ArchiveUi.panel(g, layout.panel()); ArchiveUi.header(g, font, layout.header(), Component.literal("角色档案"), Component.literal("修订 #" + card.revision()));
         int statusW = font.width(card.status().displayName()) + 8; ArchiveUi.badge(g, font, card.status().displayName(), layout.header().right() - statusW - 70, layout.header().y() + 7, ArchiveUi.statusColor(card.status()));
         ArchiveUi.section(g, layout.content());
-        if (page == 0) renderIdentity(g, card); else if (page == 1) renderBiography(g, card); else renderStats(g, mouseX, mouseY, card);
+        List<Component> tooltip = null;
+        if (page == 0) renderIdentity(g, card); else if (page == 1) renderBiography(g, card); else tooltip = renderStats(g, mouseX, mouseY, card);
         renderFeedback(g, card); super.render(g, mouseX, mouseY, partial);
+        if (tooltip != null) g.renderComponentTooltip(font, tooltip, mouseX, mouseY);
     }
     private void renderIdentity(GuiGraphics g, CharacterCard c) {
         ArchiveLayout.Rect area = ArchiveLayout.inset(layout.content(), 8); ArchiveUi.label(g, font, "身份资料", area.x(), area.y());
@@ -103,17 +101,30 @@ public final class RoleCardScreen extends Screen {
         if (editable()) ArchiveUi.label(g, font, bioBox.getValue().length() + " / " + CharacterCard.MAX_BIOGRAPHY_LENGTH + " 字符", area.x(), layout.content().bottom() - 12);
         else readMultiline(g, c.biography().isBlank() ? "未填写生平。" : c.biography(), new ArchiveLayout.Rect(area.x(), area.y() + 16, area.width(), Math.max(1, area.height() - 16)));
     }
-    private void renderStats(GuiGraphics g, int mouseX, int mouseY, CharacterCard c) {
+    private List<Component> renderStats(GuiGraphics g, int mouseX, int mouseY, CharacterCard c) {
         ArchiveLayout.Rect content = layout.content(); ArchiveUi.badge(g, font, "剩余 " + c.availablePoints() + " 点", content.x() + 8, content.y() + 5, ArchiveUi.ACCENT); ArchiveUi.label(g, font, "悬停属性卡查看实际增益", content.x() + 94, content.y() + 8);
+        List<Component> hoverTooltip = null;
         ArchiveUi.clip(g, content); int cols = twoColumns() ? 2 : 1, gap = 4, cardW = (content.width() - gap * (cols - 1)) / cols;
-        for (int i = 0; i < StatType.values().length; i++) { StatType stat = StatType.values()[i]; int x = content.x() + (i % cols) * (cardW + gap), y = content.y() + 25 + (i / cols) * (statCardHeight() + 4) - statsScroll; ArchiveLayout.Rect r = new ArchiveLayout.Rect(x, y, cardW, statCardHeight()); if (r.bottom() <= content.y() || r.y() >= content.bottom()) continue; ArchiveUi.section(g, r); g.drawString(font, stat.displayName(), x + 5, y + 5, ArchiveUi.TITLE, false); String value = c.stat(stat) + (pendingChanges[i] == 0 ? "" : "（拟" + (pendingChanges[i] > 0 ? "+" : "") + pendingChanges[i] + "）"); g.drawString(font, value, x + cardW - 70, y + 5, ArchiveUi.SUCCESS, false); g.drawString(font, compactEffect(c, stat), x + 5, y + 18, ArchiveUi.MUTED, false); if (mouseX >= r.x() && mouseX < r.right() && mouseY >= r.y() && mouseY < r.bottom()) g.renderTooltip(font, Component.literal(effectText(c, stat)), mouseX, mouseY); }
+        for (int i = 0; i < StatType.values().length; i++) {
+            StatType stat = StatType.values()[i]; int x = content.x() + (i % cols) * (cardW + gap), y = content.y() + 25 + (i / cols) * (statCardHeight() + 4) - statsScroll;
+            ArchiveLayout.Rect r = new ArchiveLayout.Rect(x, y, cardW, statCardHeight()); if (r.bottom() <= content.y() || r.y() >= content.bottom()) continue;
+            int current = c.stat(stat), preview = StatType.clamp(current + pendingChanges[i]);
+            ArchiveUi.section(g, r); g.drawString(font, stat.displayName(), x + 5, y + 5, ArchiveUi.TITLE, false);
+            Component value = current == preview ? Component.literal(String.valueOf(current)) : Component.translatable("rolecard.attribute.stat.preview", current, preview);
+            g.drawString(font, value, x + cardW - 5 - font.width(value), y + 5, ArchiveUi.SUCCESS, false);
+            Component summary = AttributeDisplayFormatter.summary(stat, preview);
+            if (current != preview) summary = Component.translatable("rolecard.attribute.summary.preview", summary);
+            g.drawString(font, summary, x + 5, y + 18, ArchiveUi.MUTED, false);
+            if (mouseX >= r.x() && mouseX < r.right() && mouseY >= r.y() && mouseY < r.bottom()) hoverTooltip = AttributeDisplayFormatter.tooltip(stat, current, preview, Screen.hasShiftDown());
+        }
         ArchiveUi.noClip(g);
+        return hoverTooltip;
     }
     private void renderFeedback(GuiGraphics g, CharacterCard c) { String message = feedbackTicks > 0 ? feedback : c.status() == ReviewStatus.REJECTED ? "退回原因：" + c.rejectReason() : !editable() ? lockedReason() : ""; int color = feedbackTicks > 0 ? feedbackColor : c.status() == ReviewStatus.REJECTED ? ArchiveUi.ERROR : ArchiveUi.WARNING; if (!message.isEmpty()) g.drawString(font, message, layout.feedback().x(), layout.feedback().y() + 2, color, false); }
     private void readLine(GuiGraphics g, String label, String value, int x, int y) { ArchiveUi.label(g, font, label, x, y); g.drawString(font, value, x + 48, y, ArchiveUi.TEXT, false); }
     private void readMultiline(GuiGraphics g, String text, ArchiveLayout.Rect r) { ArchiveUi.clip(g, r); int y = r.y(); for (net.minecraft.util.FormattedCharSequence line : font.split(Component.literal(text), r.width())) { if (y + 9 > r.bottom()) break; g.drawString(font, line, r.x(), y, ArchiveUi.TEXT, false); y += 9; } ArchiveUi.noClip(g); }
-    private String compactEffect(CharacterCard c, StatType stat) { List<AttributeRule> rules = AttributeMappings.rules(stat); if (rules.isEmpty()) return "暂无映射"; AttributeRule r = rules.get(0); return r.target().get().getDescriptionId().replace("attribute.name.generic.", "") + " +" + String.format("%.2f", AttributeMappings.amount(c, stat, r)); }
-    private String effectText(CharacterCard c, StatType stat) { List<String> parts = new ArrayList<>(); for (AttributeRule r : AttributeMappings.rules(stat)) { Attribute a = r.target().get(); parts.add(a.getDescriptionId().replace("attribute.name.generic.", "") + " +" + String.format("%.2f", AttributeMappings.amount(c, stat, r))); } return stat.displayName() + "：" + String.join("，", parts); }
+    /** CI 探针入口：构造六维页的原生多行 tooltip 数据，不发送网络包也不绘制屏幕。 */
+    public boolean ciInitializeStatsTooltip() { return !AttributeDisplayFormatter.tooltip(StatType.BULK, 12, 13, false).isEmpty(); }
     /** CI 探针入口：仅切换已有页签，不触碰业务数据。 */
     public void ciShowPage(int value) { showPage(Math.max(0, Math.min(2, value))); }
     public boolean ciLayoutWithinSafeArea() { return layout != null && layout.safe().contains(layout.panel()) && !layout.content().intersects(layout.footer()) && !layout.tabs().intersects(layout.content()); }
