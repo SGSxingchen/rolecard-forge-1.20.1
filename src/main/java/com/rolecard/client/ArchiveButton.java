@@ -9,7 +9,7 @@ public final class ArchiveButton extends Button {
     protected ArchiveButton(Button.Builder builder) { this(builder, ArchiveUi.ACCENT); }
     private ArchiveButton(Button.Builder builder, int tone) { super(builder); this.tone = tone; }
     public static ArchiveButton create(net.minecraft.network.chat.Component text, OnPress onPress, int x, int y, int width, int tone) {
-        return Button.builder(text, onPress).bounds(x, y, width, 20).build(builder -> new ArchiveButton(builder, tone));
+        return (ArchiveButton) Button.builder(text, onPress).bounds(x, y, width, 20).build(builder -> new ArchiveButton(builder, tone));
     }
     @Override protected void renderWidget(GuiGraphics g, int mouseX, int mouseY, float tick) {
         int color = !active ? 0xFF26323A : isHoveredOrFocused() ? ArchiveUi.BUTTON_HOVER : ArchiveUi.BUTTON;
