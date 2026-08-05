@@ -11,7 +11,7 @@ import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 public final class RoleCardNetwork {
-    private static final String PROTOCOL = "2";
+    private static final String PROTOCOL = "3";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(new ResourceLocation(RoleCardMod.MOD_ID, "main"), () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
     private static int nextId;
     public static void register() {
@@ -21,11 +21,13 @@ public final class RoleCardNetwork {
         CHANNEL.messageBuilder(AdjustPointsPacket.class, nextId++, NetworkDirection.PLAY_TO_SERVER).encoder(AdjustPointsPacket::encode).decoder(AdjustPointsPacket::decode).consumerMainThread(AdjustPointsPacket::handle).add();
         CHANNEL.messageBuilder(SubmitCardPacket.class, nextId++, NetworkDirection.PLAY_TO_SERVER).encoder(SubmitCardPacket::encode).decoder(SubmitCardPacket::decode).consumerMainThread(SubmitCardPacket::handle).add();
         CHANNEL.messageBuilder(OpenAdminCardPacket.class, nextId++, NetworkDirection.PLAY_TO_CLIENT).encoder(OpenAdminCardPacket::encode).decoder(OpenAdminCardPacket::decode).consumerMainThread(OpenAdminCardPacket::handle).add();
+        CHANNEL.messageBuilder(ClientFeedbackPacket.class, nextId++, NetworkDirection.PLAY_TO_CLIENT).encoder(ClientFeedbackPacket::encode).decoder(ClientFeedbackPacket::decode).consumerMainThread(ClientFeedbackPacket::handle).add();
         CHANNEL.messageBuilder(AdminReviewActionPacket.class, nextId++, NetworkDirection.PLAY_TO_SERVER).encoder(AdminReviewActionPacket::encode).decoder(AdminReviewActionPacket::decode).consumerMainThread(AdminReviewActionPacket::handle).add();
         CHANNEL.messageBuilder(AdminSaveCardPacket.class, nextId++, NetworkDirection.PLAY_TO_SERVER).encoder(AdminSaveCardPacket::encode).decoder(AdminSaveCardPacket::decode).consumerMainThread(AdminSaveCardPacket::handle).add();
     }
     public static void sync(ServerPlayer player, CharacterCard card) { CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new CardSyncPacket(card.save())); }
     public static void openAdmin(ServerPlayer admin, ServerPlayer target, CharacterCard card) { CHANNEL.send(PacketDistributor.PLAYER.with(() -> admin), new OpenAdminCardPacket(target.getUUID(), target.getGameProfile().getName(), card.save())); }
+    public static void feedback(ServerPlayer player, String message, boolean error) { CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new ClientFeedbackPacket(message, error)); }
     public static void syncPublicName(ServerPlayer player, CharacterCard card, boolean showOverhead) { CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> player), new PublicNamePacket(player.getUUID(), showOverhead ? card.shownName(player.getGameProfile().getName()) : "")); }
     public static void syncPublicName(ServerPlayer recipient, Player target, CharacterCard card, boolean showOverhead) { CHANNEL.send(PacketDistributor.PLAYER.with(() -> recipient), new PublicNamePacket(target.getUUID(), showOverhead ? card.shownName(target.getGameProfile().getName()) : "")); }
     private RoleCardNetwork() {}

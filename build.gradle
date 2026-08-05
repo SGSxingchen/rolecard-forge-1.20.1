@@ -124,6 +124,15 @@ def ciProbeJar = tasks.register('ciProbeJar', Jar) {
     from sourceSets.ci.output
 }
 
+// 纯 Java 布局模型无需启动 Minecraft；作为 check 的一部分阻止安全区/重叠回归。
+tasks.register('verifyUiLayout', JavaExec) {
+    group = 'verification'
+    description = '验证角色档案界面布局模型在常见分辨率下无重叠和越界'
+    classpath = sourceSets.ci.runtimeClasspath
+    mainClass = 'com.rolecard.ci.UiLayoutAssertions'
+}
+tasks.named('check').configure { dependsOn tasks.named('verifyUiLayout') }
+
 // ForgeGradle 在项目配置后才注册 runClient；configureEach 同时覆盖该延迟注册任务。
 tasks.configureEach {
     if (name == 'runClient') {

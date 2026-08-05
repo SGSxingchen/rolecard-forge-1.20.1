@@ -3,9 +3,9 @@
 [![Forge 1.20.1 CI](https://github.com/SGSxingchen/rolecard-forge-1.20.1/actions/workflows/ci.yml/badge.svg)](https://github.com/SGSxingchen/rolecard-forge-1.20.1/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/SGSxingchen/rolecard-forge-1.20.1)](https://github.com/SGSxingchen/rolecard-forge-1.20.1/releases/latest)
 
-适用于 **Minecraft 1.20.1 / Forge / Java 17** 的角色身份卡与六维属性模组。v1.1.0 在 v1.0.0 的身份显示与属性映射基础上，增加由服务器审核的完整角色卡流程。
+适用于 **Minecraft 1.20.1 / Forge / Java 17** 的角色身份卡与六维属性模组。v1.1.1 在 v1.1.0 完整审核流程基础上，重构玩家角色档案与管理员审核界面。
 
-> v1.1.0 仅在 CI 全绿后作为后续发布候选；本轮不会移动或覆盖现有 `v1.0.0` 标签和 Release，也不会自动创建 Release。
+> v1.1.1 重构角色档案与审核界面；本轮只推送代码并等待 CI，不创建 tag 或 Release。
 
 ## 一分钟上手：从发点到批准
 
@@ -39,6 +39,17 @@
 ```
 
 中修改。
+
+## v1.1.1 新版档案界面
+
+玩家按 **I** 后会看到居中的“角色档案册”：标题栏只显示状态与修订号，六维页单独突出剩余点数；身份、生平、六维使用统一页签，底部的关闭、保存草稿、提交角色卡有清晰主次。小屏会保留安全边距，六维属性卡会切换为单列并在内容区滚动。
+
+- 身份页：名称为主字段，年龄和性别并排；待审核/批准时改为只读排版，不伪装成可输入框。
+- 生平页：支持换行、滚动、字数计数；阅读状态使用裁剪阅读视图。
+- 六维页：每项都有当前/拟调整值、实际增益摘要和可键盘操作的 `− 数值 +` 步进器；悬停属性卡可查看完整增益。
+- 管理员面板：资料、六维、审核分区，显示原版名、UUID 摘要、状态、修订号与退回原因。
+
+自动检查只验证布局与界面初始化；请按[UI 重构说明](docs/UI重构说明.md)在实际客户端人工检查中文换行、HUD、tooltip 与视觉效果。仓库不包含用户聊天截图。
 
 ## 角色卡内容与默认规则
 

@@ -12,45 +12,110 @@ import com.rolecard.network.SubmitCardPacket;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 
-/** 原生三页 Screen：所有数值请求均仅是增减意图，权威结果由同步包回写。 */
+/** 玩家档案：布局只来自 ArchiveLayout，所有写入仍提交给服务端权威校验。 */
 public final class RoleCardScreen extends Screen {
-    private EditBox nameBox, ageBox, genderBox;
+    private ArchiveEditBox nameBox, ageBox, genderBox;
     private MultiLineBiographyBox bioBox;
-    private int left, top, cardWidth, page;
+    private ArchiveButton[] tabs, minus, plus;
+    private ArchiveButton close, save, submit;
+    private ArchiveLayout.Frame layout;
+    private int page, statsScroll, feedbackTicks;
     private final int[] pendingChanges = new int[StatType.values().length];
     private long observedRevision;
     private String feedback = "";
+    private int feedbackColor = ArchiveUi.WARNING;
+
     public RoleCardScreen() { super(Component.literal("角色档案")); }
     @Override protected void init() {
-        cardWidth=Math.max(300,Math.min(430,width-12)); left=(width-cardWidth)/2;top=Math.max(4,(height-238)/2); CharacterCard c=ClientCardCache.card(); observedRevision=c.revision();
-        nameBox=box(left+72,top+48,cardWidth-84,18,"角色名称",c.roleName(),CharacterCard.MAX_TEXT_LENGTH);
-        ageBox=box(left+48,top+74,50,18,"年龄",String.valueOf(c.age()),3); genderBox=box(left+142,top+74,cardWidth-154,18,"性别",c.gender(),CharacterCard.MAX_TEXT_LENGTH);
-        bioBox=new MultiLineBiographyBox(font,left+12,top+50,cardWidth-24,104,Component.literal("人物生平")); bioBox.setValue(c.biography()); bioBox.setMaxLength(CharacterCard.MAX_BIOGRAPHY_LENGTH); bioBox.setHint(Component.literal("可输入换行；鼠标滚轮滚动。最多 1500 字"));
-        addRenderableWidget(nameBox);addRenderableWidget(ageBox);addRenderableWidget(genderBox);addRenderableWidget(bioBox);
-        addRenderableWidget(Button.builder(Component.literal("身份"),b->showPage(0)).bounds(left+12,top+30,55,18).build());addRenderableWidget(Button.builder(Component.literal("生平"),b->showPage(1)).bounds(left+70,top+30,55,18).build());addRenderableWidget(Button.builder(Component.literal("六维"),b->showPage(2)).bounds(left+128,top+30,55,18).build());
-        addRenderableWidget(Button.builder(Component.literal("保存草稿"),b->save()).bounds(left+cardWidth-174,top+208,78,20).build());addRenderableWidget(Button.builder(Component.literal("提交角色卡"),b->submit()).bounds(left+cardWidth-92,top+208,80,20).build());addRenderableWidget(Button.builder(Component.literal("关闭"),b->onClose()).bounds(left+12,top+208,48,20).build());showPage(0);
+        layout = ArchiveLayout.frame(width, height);
+        CharacterCard card = ClientCardCache.card(); observedRevision = card.revision();
+        ArchiveLayout.Rect content = layout.content();
+        nameBox = field(content.x() + 48, content.y() + 16, content.width() - 48, "角色名称", card.roleName(), CharacterCard.MAX_TEXT_LENGTH);
+        int half = (content.width() - 4) / 2;
+        ageBox = field(content.x(), content.y() + 52, half, "年龄", String.valueOf(card.age()), 3);
+        genderBox = field(content.x() + half + 4, content.y() + 52, content.width() - half - 4, "性别", card.gender(), CharacterCard.MAX_TEXT_LENGTH);
+        bioBox = new MultiLineBiographyBox(font, content.x(), content.y() + 16, content.width(), Math.max(34, content.height() - 33), Component.literal("输入人物生平；支持换行和滚轮滚动"));
+        bioBox.setValue(card.biography()); bioBox.setMaxLength(CharacterCard.MAX_BIOGRAPHY_LENGTH);
+        addRenderableWidget(nameBox); addRenderableWidget(ageBox); addRenderableWidget(genderBox); addRenderableWidget(bioBox);
+        tabs = new ArchiveButton[3]; String[] tabNames = {"身份", "生平", "六维"};
+        for (int i = 0; i < 3; i++) { final int target = i; ArchiveLayout.Rect r = layout.tab(i); tabs[i] = ArchiveButton.create(Component.literal(tabNames[i]), b -> showPage(target), r.x(), r.y(), r.width(), ArchiveUi.ACCENT); addRenderableWidget(tabs[i]); }
+        ArchiveLayout.PlayerActions actions = ArchiveLayout.playerActions(layout);
+        close = ArchiveButton.create(Component.literal("关闭"), b -> onClose(), actions.close().x(), actions.close().y(), actions.close().width(), ArchiveUi.MUTED);
+        submit = ArchiveButton.create(Component.literal("提交角色卡"), b -> submit(), actions.submit().x(), actions.submit().y(), actions.submit().width(), ArchiveUi.ACCENT);
+        save = ArchiveButton.create(Component.literal("保存草稿"), b -> save(), actions.save().x(), actions.save().y(), actions.save().width(), ArchiveUi.WARNING);
+        addRenderableWidget(close); addRenderableWidget(save); addRenderableWidget(submit);
+        minus = new ArchiveButton[StatType.values().length]; plus = new ArchiveButton[StatType.values().length];
+        for (int i = 0; i < StatType.values().length; i++) { final int index = i; minus[i] = ArchiveButton.create(Component.literal("−"), b -> adjust(StatType.values()[index], -1), 0, 0, 22, ArchiveUi.MUTED); plus[i] = ArchiveButton.create(Component.literal("+"), b -> adjust(StatType.values()[index], 1), 0, 0, 22, ArchiveUi.ACCENT); addRenderableWidget(minus[i]); addRenderableWidget(plus[i]); }
+        showPage(0);
     }
-    private EditBox box(int x,int y,int w,int h,String hint,String value,int max){EditBox b=new EditBox(font,x,y,w,h,Component.literal(hint));b.setValue(value);b.setMaxLength(max);return b;}
-    private void showPage(int value){page=value; boolean identity=value==0;nameBox.visible=identity;nameBox.setFocused(identity);ageBox.visible=identity;genderBox.visible=identity;bioBox.visible=value==1;bioBox.setFocused(value==1);}
-    private boolean editable(){return ClientCardCache.card().canPlayerEdit();}
-    private void save(){try{RoleCardNetwork.CHANNEL.sendToServer(new SaveDraftPacket(ClientCardCache.card().revision(),nameBox.getValue(),Integer.parseInt(ageBox.getValue()),genderBox.getValue(),bioBox.getValue()));feedback="已提交草稿，等待服务器校验。";}catch(NumberFormatException e){feedback="年龄必须是 0 至 999 的整数。";}}
-    private void submit(){RoleCardNetwork.CHANNEL.sendToServer(new SubmitCardPacket(ClientCardCache.card().revision()));feedback="已发送提交请求。";}
-    private void adjust(StatType type,int delta){if(!editable()){feedback="待审核或已批准的角色卡不能自行加点。";return;}pendingChanges[type.ordinal()]+=delta;RoleCardNetwork.CHANNEL.sendToServer(new AdjustPointsPacket(ClientCardCache.card().revision(),type.key(),delta));}
-    @Override public boolean keyPressed(int key,int scan,int modifiers){if(bioBox.isFocused() && key==257){bioBox.insertText("\n");return true;}return super.keyPressed(key,scan,modifiers);}
-    @Override public void render(GuiGraphics g,int mouseX,int mouseY,float partial){renderBackground(g);g.fill(left,top,left+cardWidth,top+238,0xEE18202C);g.fill(left+2,top+2,left+cardWidth-2,top+28,0xFF345170);g.drawCenteredString(font,title,left+cardWidth/2,top+10,0xFFF5F1D8);CharacterCard c=ClientCardCache.card();if(c.revision()!=observedRevision){java.util.Arrays.fill(pendingChanges,0);observedRevision=c.revision();}g.drawString(font,"状态："+c.status().displayName()+"　剩余点数："+c.availablePoints()+"　版本："+c.revision(),left+12,top+12,0xFFAED4E6,false);
-        if(page==0){g.drawString(font,"身份信息",left+12,top+43,0xFFAED4E6,false);g.drawString(font,"名称",left+14,top+53,0xFFE7E4D5,false);g.drawString(font,"年龄",left+14,top+79,0xFFE7E4D5,false);g.drawString(font,"性别",left+105,top+79,0xFFE7E4D5,false);}
-        else if(page==1){g.drawString(font,"人物生平／人设介绍（输入框支持回车；内容会随草稿保存）",left+12,top+42,0xFFAED4E6,false);g.drawString(font,bioBox.getValue().length()+" / "+CharacterCard.MAX_BIOGRAPHY_LENGTH+" 字符",left+12,top+158,0xFFA8B7C5,false);}
-        else renderStats(g,mouseX,mouseY,c);
-        if(c.status()==ReviewStatus.REJECTED)g.drawString(font,"退回原因："+c.rejectReason(),left+12,top+184,0xFFFFB16E,false);else if(!editable())g.drawString(font,"当前已锁定：等待审核或已批准，管理员可退回/解锁。",left+12,top+184,0xFFFFD27D,false);if(!feedback.isEmpty())g.drawString(font,feedback,left+64,top+214,0xFFFFD27D,false);super.render(g,mouseX,mouseY,partial);}
-    private void renderStats(GuiGraphics g,int mx,int my,CharacterCard c){g.drawString(font,"六维加点：+ 消耗 1 点，- 返还 1 点；悬停查看实际增益",left+12,top+43,0xFFAED4E6,false);for(int i=0;i<StatType.values().length;i++){StatType stat=StatType.values()[i];int y=top+61+i*23;g.fill(left+12,y,left+cardWidth-12,y+19,0xFF223043);g.drawString(font,stat.displayName(),left+18,y+6,0xFFF0EBD5,false);g.drawString(font,c.stat(stat)+(pendingChanges[i]==0?"":"（拟"+(pendingChanges[i]>0?"+":"")+pendingChanges[i]+"）"),left+cardWidth-150,y+6,0xFF9FE3BE,false);int px=left+cardWidth-64;g.fill(px,y+2,px+16,y+17,0xFF496176);g.drawString(font,"-",px+5,y+5,0xFFFFFFFF,false);g.fill(px+22,y+2,px+38,y+17,0xFF496176);g.drawString(font,"+",px+27,y+5,0xFFFFFFFF,false);if(mx>=px&&mx<=px+16&&my>=y+2&&my<=y+17)adjustHover(g,stat,c,mx,my);if(mx>=px+22&&mx<=px+38&&my>=y+2&&my<=y+17)adjustHover(g,stat,c,mx,my);}}
-    private void adjustHover(GuiGraphics g,StatType stat,CharacterCard c,int x,int y){g.renderTooltip(font,Component.literal(effectText(c,stat)),x,y);}
-    @Override public boolean mouseClicked(double x,double y,int button){if(page==2){for(int i=0;i<StatType.values().length;i++){int row=top+61+i*23,px=left+cardWidth-64;if(y>=row+2&&y<=row+17){if(x>=px&&x<=px+16){adjust(StatType.values()[i],-1);return true;}if(x>=px+22&&x<=px+38){adjust(StatType.values()[i],1);return true;}}}}return super.mouseClicked(x,y,button);}
-    private String effectText(CharacterCard c,StatType stat){List<String> parts=new ArrayList<>();for(AttributeRule r:AttributeMappings.rules(stat)){Attribute a=r.target().get();parts.add(a.getDescriptionId().replace("attribute.name.generic.","")+" +"+String.format("%.2f",AttributeMappings.amount(c,stat,r)));}return stat.displayName()+"："+String.join("，",parts);}
-    @Override public boolean isPauseScreen(){return false;}
+    private ArchiveEditBox field(int x, int y, int w, String hint, String value, int max) { ArchiveEditBox box = new ArchiveEditBox(font, x, y, Math.max(30, w), Component.literal(hint)); box.setValue(value); box.setMaxLength(max); return box; }
+    private void showPage(int value) { page = value; statsScroll = 0; updateWidgetState(); }
+    private boolean editable() { return ClientCardCache.card().canPlayerEdit(); }
+    private void updateWidgetState() {
+        if (tabs == null) return;
+        boolean edit = editable();
+        nameBox.visible = page == 0 && edit; ageBox.visible = page == 0 && edit; genderBox.visible = page == 0 && edit;
+        bioBox.visible = page == 1 && edit;
+        for (int i = 0; i < tabs.length; i++) tabs[i].active = i != page;
+        save.active = edit; submit.active = edit;
+        Component reason = Component.literal(edit ? "" : lockedReason()); save.setTooltip(edit ? null : Tooltip.create(reason)); submit.setTooltip(edit ? null : Tooltip.create(reason));
+        positionStats();
+    }
+    private String lockedReason() { return switch (ClientCardCache.card().status()) { case PENDING -> "待审核期间不能提交；请等待管理员处理。"; case APPROVED -> "角色卡已批准并锁定。"; default -> "当前状态不允许提交。"; }; }
+    private void save() { try { RoleCardNetwork.CHANNEL.sendToServer(new SaveDraftPacket(ClientCardCache.card().revision(), nameBox.getValue(), Integer.parseInt(ageBox.getValue()), genderBox.getValue(), bioBox.getValue())); notice("已发送保存请求，等待服务器确认。", ArchiveUi.SUCCESS); } catch (NumberFormatException ignored) { notice("年龄必须是 0 至 999 的整数。", ArchiveUi.ERROR); } }
+    private void submit() { if (!editable()) { notice(lockedReason(), ArchiveUi.WARNING); return; } RoleCardNetwork.CHANNEL.sendToServer(new SubmitCardPacket(ClientCardCache.card().revision())); notice("已发送提交请求，等待服务器确认。", ArchiveUi.SUCCESS); }
+    private void adjust(StatType type, int delta) { if (!editable()) { notice(lockedReason(), ArchiveUi.WARNING); return; } pendingChanges[type.ordinal()] += delta; RoleCardNetwork.CHANNEL.sendToServer(new AdjustPointsPacket(ClientCardCache.card().revision(), type.key(), delta)); }
+    private void notice(String text, int color) { feedback = text; feedbackColor = color; feedbackTicks = 100; }
+    @Override public void tick() { super.tick(); if (feedbackTicks > 0) feedbackTicks--; }
+    @Override public boolean keyPressed(int key, int scan, int modifiers) { if (bioBox.isFocused() && key == 257) { bioBox.insertText("\n"); return true; } return super.keyPressed(key, scan, modifiers); }
+    @Override public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+        if (page == 2 && layout.content().x() <= mouseX && mouseX < layout.content().right()) { statsScroll = Math.max(0, Math.min(statsMaxScroll(), statsScroll - (int)Math.signum(delta) * 16)); positionStats(); return true; }
+        return super.mouseScrolled(mouseX, mouseY, delta);
+    }
+    private boolean twoColumns() { return layout.content().width() >= 470; }
+    private int statCardHeight() { return 38; }
+    private int statsMaxScroll() { int rows = twoColumns() ? 3 : 6; return Math.max(0, rows * (statCardHeight() + 4) - 4 - Math.max(1, layout.content().height() - 25)); }
+    private void positionStats() {
+        if (minus == null) return;
+        ArchiveLayout.Rect content = layout.content(); int cols = twoColumns() ? 2 : 1, gap = 4, cardW = (content.width() - gap * (cols - 1)) / cols;
+        for (int i = 0; i < minus.length; i++) { int col = i % cols, row = i / cols, x = content.x() + col * (cardW + gap), y = content.y() + 25 + row * (statCardHeight() + 4) - statsScroll; boolean visible = page == 2 && y >= content.y() && y + statCardHeight() <= content.bottom(); minus[i].setX(x + cardW - 48); minus[i].setY(y + 14); plus[i].setX(x + cardW - 24); plus[i].setY(y + 14); minus[i].visible = visible; plus[i].visible = visible; minus[i].active = visible && editable(); plus[i].active = visible && editable(); }
+    }
+    @Override public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
+        renderBackground(g); CharacterCard card = ClientCardCache.card(); if (card.revision() != observedRevision) { java.util.Arrays.fill(pendingChanges, 0); observedRevision = card.revision(); updateWidgetState(); notice("资料已从服务器同步，请确认后继续操作。", ArchiveUi.WARNING); }
+        ArchiveUi.panel(g, layout.panel()); ArchiveUi.header(g, font, layout.header(), Component.literal("角色档案"), Component.literal("修订 #" + card.revision()));
+        int statusW = font.width(card.status().displayName()) + 8; ArchiveUi.badge(g, font, card.status().displayName(), layout.header().right() - statusW - 70, layout.header().y() + 7, ArchiveUi.statusColor(card.status()));
+        ArchiveUi.section(g, layout.content());
+        if (page == 0) renderIdentity(g, card); else if (page == 1) renderBiography(g, card); else renderStats(g, mouseX, mouseY, card);
+        renderFeedback(g, card); super.render(g, mouseX, mouseY, partial);
+    }
+    private void renderIdentity(GuiGraphics g, CharacterCard c) {
+        ArchiveLayout.Rect area = ArchiveLayout.inset(layout.content(), 8); ArchiveUi.label(g, font, "身份资料", area.x(), area.y());
+        if (editable()) { ArchiveUi.label(g, font, "名称", area.x(), area.y() + 18); ArchiveUi.label(g, font, "年龄", area.x(), area.y() + 54); ArchiveUi.label(g, font, "性别", area.x() + (area.width() + 4) / 2, area.y() + 54); }
+        else { readLine(g, "名称", c.roleName().isBlank() ? "未填写" : c.roleName(), area.x(), area.y() + 20); readLine(g, "年龄", String.valueOf(c.age()), area.x(), area.y() + 37); readLine(g, "性别", c.gender(), area.x(), area.y() + 54); }
+    }
+    private void renderBiography(GuiGraphics g, CharacterCard c) {
+        ArchiveLayout.Rect area = ArchiveLayout.inset(layout.content(), 8); ArchiveUi.label(g, font, editable() ? "人物生平（支持换行与滚轮）" : "人物生平（只读）", area.x(), area.y());
+        if (editable()) ArchiveUi.label(g, font, bioBox.getValue().length() + " / " + CharacterCard.MAX_BIOGRAPHY_LENGTH + " 字符", area.x(), layout.content().bottom() - 12);
+        else readMultiline(g, c.biography().isBlank() ? "未填写生平。" : c.biography(), new ArchiveLayout.Rect(area.x(), area.y() + 16, area.width(), Math.max(1, area.height() - 16)));
+    }
+    private void renderStats(GuiGraphics g, int mouseX, int mouseY, CharacterCard c) {
+        ArchiveLayout.Rect content = layout.content(); ArchiveUi.badge(g, font, "剩余 " + c.availablePoints() + " 点", content.x() + 8, content.y() + 5, ArchiveUi.ACCENT); ArchiveUi.label(g, font, "悬停属性卡查看实际增益", content.x() + 94, content.y() + 8);
+        ArchiveUi.clip(g, content); int cols = twoColumns() ? 2 : 1, gap = 4, cardW = (content.width() - gap * (cols - 1)) / cols;
+        for (int i = 0; i < StatType.values().length; i++) { StatType stat = StatType.values()[i]; int x = content.x() + (i % cols) * (cardW + gap), y = content.y() + 25 + (i / cols) * (statCardHeight() + 4) - statsScroll; ArchiveLayout.Rect r = new ArchiveLayout.Rect(x, y, cardW, statCardHeight()); if (r.bottom() <= content.y() || r.y() >= content.bottom()) continue; ArchiveUi.section(g, r); g.drawString(font, stat.displayName(), x + 5, y + 5, ArchiveUi.TITLE, false); String value = c.stat(stat) + (pendingChanges[i] == 0 ? "" : "（拟" + (pendingChanges[i] > 0 ? "+" : "") + pendingChanges[i] + "）"); g.drawString(font, value, x + cardW - 70, y + 5, ArchiveUi.SUCCESS, false); g.drawString(font, compactEffect(c, stat), x + 5, y + 18, ArchiveUi.MUTED, false); if (mouseX >= r.x() && mouseX < r.right() && mouseY >= r.y() && mouseY < r.bottom()) g.renderTooltip(font, Component.literal(effectText(c, stat)), mouseX, mouseY); }
+        ArchiveUi.noClip(g);
+    }
+    private void renderFeedback(GuiGraphics g, CharacterCard c) { String message = feedbackTicks > 0 ? feedback : c.status() == ReviewStatus.REJECTED ? "退回原因：" + c.rejectReason() : !editable() ? lockedReason() : ""; int color = feedbackTicks > 0 ? feedbackColor : c.status() == ReviewStatus.REJECTED ? ArchiveUi.ERROR : ArchiveUi.WARNING; if (!message.isEmpty()) g.drawString(font, message, layout.feedback().x(), layout.feedback().y() + 2, color, false); }
+    private void readLine(GuiGraphics g, String label, String value, int x, int y) { ArchiveUi.label(g, font, label, x, y); g.drawString(font, value, x + 48, y, ArchiveUi.TEXT, false); }
+    private void readMultiline(GuiGraphics g, String text, ArchiveLayout.Rect r) { ArchiveUi.clip(g, r); int y = r.y(); for (net.minecraft.util.FormattedCharSequence line : font.split(Component.literal(text), r.width())) { if (y + 9 > r.bottom()) break; g.drawString(font, line, r.x(), y, ArchiveUi.TEXT, false); y += 9; } ArchiveUi.noClip(g); }
+    private String compactEffect(CharacterCard c, StatType stat) { List<AttributeRule> rules = AttributeMappings.rules(stat); if (rules.isEmpty()) return "暂无映射"; AttributeRule r = rules.get(0); return r.target().get().getDescriptionId().replace("attribute.name.generic.", "") + " +" + String.format("%.2f", AttributeMappings.amount(c, stat, r)); }
+    private String effectText(CharacterCard c, StatType stat) { List<String> parts = new ArrayList<>(); for (AttributeRule r : AttributeMappings.rules(stat)) { Attribute a = r.target().get(); parts.add(a.getDescriptionId().replace("attribute.name.generic.", "") + " +" + String.format("%.2f", AttributeMappings.amount(c, stat, r))); } return stat.displayName() + "：" + String.join("，", parts); }
+    /** CI 探针入口：仅切换已有页签，不触碰业务数据。 */
+    public void ciShowPage(int value) { showPage(Math.max(0, Math.min(2, value))); }
+    public boolean ciLayoutWithinSafeArea() { return layout != null && layout.safe().contains(layout.panel()) && !layout.content().intersects(layout.footer()) && !layout.tabs().intersects(layout.content()); }
+    @Override public boolean isPauseScreen() { return false; }
 }
