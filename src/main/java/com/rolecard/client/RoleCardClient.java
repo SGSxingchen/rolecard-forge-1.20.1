@@ -15,7 +15,17 @@ import org.lwjgl.glfw.GLFW;
 @Mod.EventBusSubscriber(modid = RoleCardMod.MOD_ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
 public final class RoleCardClient {
     private static final KeyMapping OPEN_KEY = new KeyMapping("key.rolecard.open", GLFW.GLFW_KEY_I, "key.categories.rolecard");
-    @SubscribeEvent public static void registerKey(RegisterKeyMappingsEvent event) { event.register(OPEN_KEY); ClientHooks.install(ClientCardCache::update); ClientHooks.installPublicName(ClientDisplayNames::update); ClientHooks.installAdmin((id, name, card) -> Minecraft.getInstance().setScreen(new AdminRoleCardScreen(id, name, card))); ClientHooks.installFeedback((message, error) -> { if (Minecraft.getInstance().screen instanceof AdminRoleCardScreen screen) screen.receiveServerFeedback(message, error); }); }
+    @SubscribeEvent public static void registerKey(RegisterKeyMappingsEvent event) {
+        event.register(OPEN_KEY); ClientHooks.install(ClientCardCache::update); ClientHooks.installPublicName(ClientDisplayNames::update);
+        ClientHooks.installAdmin((id, name, card) -> Minecraft.getInstance().setScreen(new AdminRoleCardScreen(id, name, card)));
+        ClientHooks.installMission(ClientMissionCache::update);
+        ClientHooks.installAdminMission(data -> { ClientMissionCache.update(data); Minecraft.getInstance().setScreen(new AdminMissionScreen(data)); });
+        ClientHooks.installMissionOpen(() -> Minecraft.getInstance().setScreen(new RoleCardScreen(3)));
+        ClientHooks.installFeedback((message, error) -> {
+            if (Minecraft.getInstance().screen instanceof AdminRoleCardScreen screen) screen.receiveServerFeedback(message, error);
+            if (Minecraft.getInstance().screen instanceof AdminMissionScreen screen) screen.receiveServerFeedback(message, error);
+        });
+    }
 
     @Mod.EventBusSubscriber(modid = RoleCardMod.MOD_ID, value = Dist.CLIENT)
     public static final class ForgeEvents {

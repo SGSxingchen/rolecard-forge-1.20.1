@@ -59,7 +59,7 @@ done
 [[ "$ready" -eq 1 ]] || { echo "等待 Forge 专服 Done 超时" >&2; exit 1; }
 
 # help 命令由 Brigadier 按已注册树返回 rolecard；这是无玩家环境可可靠执行的命令注册验证。
-printf 'list\nhelp rolecard\nsave-all flush\nstop\n' >&3
+printf 'list\nhelp rolecard\nhelp rolecard mission\nsave-all flush\nstop\n' >&3
 for _ in {1..60}; do kill -0 "$SERVER_PID" 2>/dev/null || break; sleep 1; done
 if kill -0 "$SERVER_PID" 2>/dev/null; then echo "专服未在 stop 后正常退出" >&2; exit 1; fi
 trap - EXIT
@@ -68,6 +68,7 @@ combined="$WORK/combined.log"
 cat "$LOG" logs/latest.log 2>/dev/null > "$combined" || cp "$LOG" "$combined"
 grep -qi 'rolecard' "$combined" || { echo "日志中没有 rolecard 装载证据" >&2; exit 1; }
 grep -qi 'rolecard' "$LOG" || { echo "help rolecard 未返回 rolecard，命令可能没有注册" >&2; exit 1; }
+grep -qi 'mission' "$LOG" || { echo "help rolecard mission 未返回 mission，任务命令可能没有注册" >&2; exit 1; }
 if grep -Eqi 'FATAL|NoClassDefFoundError|Attempted to load class .* for invalid dist DEDICATED_SERVER|Mixin apply (failed|error)|MixinApplyError|crash-report|crash report' "$combined"; then
   echo "专服日志含严重加载错误" >&2; grep -Ein 'FATAL|NoClassDefFoundError|invalid dist|Mixin|crash' "$combined" >&2 || true; exit 1
 fi

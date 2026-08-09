@@ -10,7 +10,15 @@ public final class ArchiveLayout {
     }
 
     public record Frame(Rect safe, Rect panel, Rect header, Rect tabs, Rect content, Rect feedback, Rect footer) {
-        public Rect tab(int index) { int base = tabs.width / 3, x = tabs.x + base * index; return new Rect(x, tabs.y, index == 2 ? tabs.right() - x : base, tabs.height); }
+        /** 三页审核档案与四页玩家档案共用同一条页签轨道。 */
+        public Rect tab(int index) { return tab(index, 3); }
+        public Rect tab(int index, int count) {
+            int safeCount = Math.max(1, count);
+            int safeIndex = Math.max(0, Math.min(safeCount - 1, index));
+            int base = tabs.width / safeCount;
+            int x = tabs.x + base * safeIndex;
+            return new Rect(x, tabs.y, safeIndex == safeCount - 1 ? tabs.right() - x : base, tabs.height);
+        }
     }
     public record PlayerActions(Rect close, Rect save, Rect submit) {}
     public record AdminActions(Rect close, Rect save, Rect reject, Rect approve, Rect unlock) {}

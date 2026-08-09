@@ -3,9 +3,9 @@
 [![Forge 1.20.1 CI](https://github.com/SGSxingchen/rolecard-forge-1.20.1/actions/workflows/ci.yml/badge.svg)](https://github.com/SGSxingchen/rolecard-forge-1.20.1/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/SGSxingchen/rolecard-forge-1.20.1)](https://github.com/SGSxingchen/rolecard-forge-1.20.1/releases/latest)
 
-适用于 **Minecraft 1.20.1 / Forge / Java 17** 的角色身份卡与六维属性模组。v1.1.2 在 v1.1.1 档案界面基础上，修复属性增益文本泄漏内部注册键的问题。
+适用于 **Minecraft 1.20.1 / Forge / Java 17** 的角色身份卡与六维属性模组。v1.2.0 新增服务器全局“世界任务／副本公告”：玩家查看，管理员编辑发布。
 
-> v1.1.2 让属性名称按每位玩家客户端语言显示；本轮只推送代码并等待 CI，不创建 tag 或 Release。
+> v1.2.0 增加世界任务／副本公告；正式发布仅在该提交的 GitHub Actions 全绿后进行。
 
 ## 一分钟上手：从发点到批准
 
@@ -52,6 +52,29 @@
 - 管理员面板：资料、六维、审核分区，六维同样预览编辑框中的拟提交属性增益，并显示原版名、UUID 摘要、状态、修订号与退回原因。
 
 自动检查只验证布局与界面初始化；请按[UI 重构说明](docs/UI重构说明.md)在实际客户端人工检查中文换行、HUD、tooltip 与视觉效果。仓库不包含用户聊天截图。
+
+## 世界任务／副本公告（v1.2.0）
+
+按 **I** 打开角色档案后，第四个“世界任务”页签会只读展示服务器当前公告：任务名称、简介、可手动标记完成的主要目标、规则、备注，以及副本名称/章节、难度、人数、时限、状态、修订与最后编辑信息。没有公告时会显示“当前没有已发布的世界任务”。
+
+这是**公告展示与人工编辑**功能，不会自动判定目标、协调任务世界或周目、传送、发奖励、处理道具继承，也不联网或连接数据库。客户端收到的是服务器权威快照，普通玩家不能编辑或伪造状态。
+
+管理员（权限等级 2）可使用：
+
+```text
+/rolecard mission view
+/rolecard mission edit
+/rolecard mission clear
+/rolecard mission status <draft|active|completed|closed>
+/rolecard mission title <文本...>
+/rolecard mission summary <文本...>
+/rolecard mission instance <名称...>
+/rolecard mission objective add <文本...>
+/rolecard mission objective set <序号> <完成true|false> [文本...]
+/rolecard mission objective remove <序号>
+```
+
+`mission edit` 在有客户端模组的管理员处打开档案册风格的“任务管理”面板；发布后在线玩家收到一次可点击提示并可打开任务页。详细字段上限、SavedData、扩展接口和明日人工测试见[世界任务公告说明](docs/v1.2.0世界任务公告说明.md)。
 
 ## 角色卡内容与默认规则
 

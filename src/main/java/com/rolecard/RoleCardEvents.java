@@ -6,6 +6,7 @@ import com.rolecard.data.CharacterCard;
 import com.rolecard.data.RoleCardCapability;
 import com.rolecard.network.RoleCardNetwork;
 import com.rolecard.review.ReviewQueueSavedData;
+import com.rolecard.service.MissionBoardService;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -24,7 +25,7 @@ public final class RoleCardEvents {
 
     public static void configReload(ModConfigEvent.Reloading event) {
         if (event.getConfig().getSpec() != RoleCardConfig.SPEC || ServerLifecycleHooks.getCurrentServer() == null) return;
-        for (ServerPlayer player : ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayers()) syncAndApply(player);
+        for (ServerPlayer player : ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayers()) { syncAndApply(player); MissionBoardService.sync(player); }
     }
 
     @SubscribeEvent
@@ -46,6 +47,7 @@ public final class RoleCardEvents {
     @SubscribeEvent
     public void login(PlayerEvent.PlayerLoggedInEvent event) {
         syncAndApply(event.getEntity());
+        if (event.getEntity() instanceof ServerPlayer player) MissionBoardService.sync(player);
         if (event.getEntity() instanceof ServerPlayer player && player.hasPermissions(2)) {
             int pending = ReviewQueueSavedData.get(player.server).size();
             if (pending > 0) player.sendSystemMessage(Component.literal("当前有 " + pending + " 张待审核角色卡；使用 /rolecard review list 查看。"));
@@ -56,7 +58,7 @@ public final class RoleCardEvents {
     public void respawn(PlayerEvent.PlayerRespawnEvent event) { syncAndApply(event.getEntity()); }
 
     @SubscribeEvent
-    public void dimension(PlayerEvent.PlayerChangedDimensionEvent event) { syncAndApply(event.getEntity()); }
+    public void dimension(PlayerEvent.PlayerChangedDimensionEvent event) { syncAndApply(event.getEntity()); if (event.getEntity() instanceof ServerPlayer player) MissionBoardService.sync(player); }
 
     @SubscribeEvent
     public void name(NameFormat event) {

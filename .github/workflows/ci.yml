@@ -28,6 +28,8 @@ jobs:
         run: python3 scripts/ci/rolecard_v110_logic.py
       - name: 执行 v1.1.2 属性显示纯逻辑探针
         run: python3 scripts/ci/rolecard_v112_attribute_display.py
+      - name: 执行 v1.2.0 世界任务公告纯逻辑探针
+        run: python3 scripts/ci/rolecard_v120_mission.py
 
   build:
     name: 构建发布包（Java 17）

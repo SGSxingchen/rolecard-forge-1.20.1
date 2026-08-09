@@ -42,8 +42,8 @@ try:
             fail("CI 客户端探针被错误打入发布 Jar")
         mods = tomllib.loads(archive.read("META-INF/mods.toml").decode("utf-8"))
         mods_list = mods.get("mods", [])
-        if not any(item.get("modId") == mod_id for item in mods_list):
-            fail(f"Jar 中 mods.toml 未声明 modId={mod_id}")
+        if not any(item.get("modId") == mod_id and item.get("version") == version for item in mods_list):
+            fail(f"Jar 中 mods.toml 未声明 modId={mod_id} 且 version={version}")
 except zipfile.BadZipFile:
     fail(f"{jar.name} 不是有效 Jar")
 

@@ -2,6 +2,7 @@ package com.rolecard.ci;
 
 import com.mojang.logging.LogUtils;
 import com.rolecard.client.AdminRoleCardScreen;
+import com.rolecard.client.AdminMissionScreen;
 import com.rolecard.client.RoleCardScreen;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
@@ -65,7 +66,7 @@ public final class ClientSmokeProbe {
     private static void exerciseUi(Minecraft minecraft) {
         if (++uiTicks < 12) return;
         uiTicks = 0;
-        if (uiPhase >= 1 && uiPhase <= 3 && minecraft.screen instanceof RoleCardScreen player) {
+        if (uiPhase >= 1 && uiPhase <= 4 && minecraft.screen instanceof RoleCardScreen player) {
             player.ciShowPage(uiPhase - 1);
             if (!player.ciLayoutWithinSafeArea()) throw new IllegalStateException("玩家页签布局不稳定");
             if (uiPhase == 3 && !player.ciInitializeStatsTooltip()) throw new IllegalStateException("玩家六维多行 tooltip 初始化失败");
@@ -73,22 +74,34 @@ public final class ClientSmokeProbe {
             uiPhase++;
             return;
         }
-        if (uiPhase == 4) {
+        if (uiPhase == 5) {
             CompoundTag data = new CompoundTag(); data.putString("roleName", "CI 调查员"); data.putString("biography", "用于客户端审核界面探针的多行资料。\n第二行。");
             AdminRoleCardScreen screen = new AdminRoleCardScreen(UUID.fromString("00000000-0000-0000-0000-000000000001"), "CI_Player", data);
             minecraft.setScreen(screen);
             if (!screen.ciLayoutWithinSafeArea()) throw new IllegalStateException("管理员档案布局越过安全区或分区重叠");
             if (!screen.ciInitializeStatsTooltip()) throw new IllegalStateException("管理员六维多行 tooltip 初始化失败");
-            uiPhase = 5; LOGGER.info("ROLECARD_CI_UI_ADMIN_OPEN: 管理员资料页已初始化。"); return;
+            uiPhase = 6; LOGGER.info("ROLECARD_CI_UI_ADMIN_OPEN: 管理员资料页已初始化。"); return;
         }
-        if (uiPhase >= 5 && uiPhase <= 7 && minecraft.screen instanceof AdminRoleCardScreen admin) {
-            admin.ciShowPage(uiPhase - 5);
+        if (uiPhase >= 6 && uiPhase <= 8 && minecraft.screen instanceof AdminRoleCardScreen admin) {
+            admin.ciShowPage(uiPhase - 6);
             if (!admin.ciLayoutWithinSafeArea()) throw new IllegalStateException("管理员页签布局不稳定");
-            LOGGER.info("ROLECARD_CI_UI_ADMIN_PAGE_OK: 页签 {} 初始化、切换与稳定 tick 通过。", uiPhase - 5);
+            LOGGER.info("ROLECARD_CI_UI_ADMIN_PAGE_OK: 页签 {} 初始化、切换与稳定 tick 通过。", uiPhase - 6);
             uiPhase++;
             return;
         }
-        if (uiPhase == 8) finish(minecraft, "主菜单稳定后已依次验证玩家三页与管理员三页的初始化、切换和稳定 tick");
+        if (uiPhase == 9) {
+            AdminMissionScreen screen = new AdminMissionScreen(new CompoundTag()); minecraft.setScreen(screen);
+            if (!screen.ciLayoutWithinSafeArea()) throw new IllegalStateException("管理员任务布局越过安全区或分区重叠");
+            uiPhase = 10; LOGGER.info("ROLECARD_CI_UI_MISSION_ADMIN_OPEN: 管理员任务基本页已初始化。"); return;
+        }
+        if (uiPhase >= 10 && uiPhase <= 13 && minecraft.screen instanceof AdminMissionScreen admin) {
+            admin.ciShowPage(uiPhase - 10);
+            if (!admin.ciLayoutWithinSafeArea()) throw new IllegalStateException("管理员任务页签布局不稳定");
+            LOGGER.info("ROLECARD_CI_UI_MISSION_ADMIN_PAGE_OK: 页签 {} 初始化、切换与稳定 tick 通过。", uiPhase - 10);
+            uiPhase++;
+            return;
+        }
+        if (uiPhase == 14) finish(minecraft, "主菜单稳定后已依次验证玩家四页、管理员角色卡三页与管理员任务四页的初始化、切换和稳定 tick");
     }
 
     private static void finish(Minecraft minecraft, String evidence) {

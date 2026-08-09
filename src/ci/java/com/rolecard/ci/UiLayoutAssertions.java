@@ -15,6 +15,7 @@ public final class UiLayoutAssertions {
         require(!f.tabs().intersects(f.content()), "页签压住内容/说明区");
         require(!f.content().intersects(f.feedback()) && !f.content().intersects(f.footer()) && !f.feedback().intersects(f.footer()), "内容、反馈或底栏重叠");
         for (int i = 0; i < 3; i++) { ArchiveLayout.Rect tab = f.tab(i); require(f.tabs().contains(tab) && tab.height() >= 20 && tab.width() >= 20, "页签不可点击"); for (int j = i + 1; j < 3; j++) require(!tab.intersects(f.tab(j)), "页签互相重叠"); }
+        for (int i = 0; i < 4; i++) { ArchiveLayout.Rect tab = f.tab(i, 4); require(f.tabs().contains(tab) && tab.height() >= 20 && tab.width() >= 20, "四页任务页签不可点击"); for (int j = i + 1; j < 4; j++) require(!tab.intersects(f.tab(j, 4)), "任务页签互相重叠"); }
         require(f.footer().height() >= 20 && f.footer().width() >= 160, "底栏按钮没有最小可点击空间");
         ArchiveLayout.PlayerActions player = ArchiveLayout.playerActions(f); checkActions(f.footer(), player.close(), player.save(), player.submit());
         ArchiveLayout.AdminActions admin = ArchiveLayout.adminActions(f); checkActions(f.footer(), admin.close(), admin.save(), admin.reject(), admin.approve(), admin.unlock());
