@@ -36,7 +36,10 @@ public final class ClientSmokeProbe {
     }
     @SubscribeEvent public void onClientTick(TickEvent.ClientTickEvent event) {
         if (stopping || event.phase != TickEvent.Phase.END) return; stableClientTicks++; Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.screen instanceof TitleScreen && uiPhase == 0) { if (++titleScreenTicks >= 40) openPlayer(minecraft); } else titleScreenTicks = 0;
+        if (uiPhase == 0) {
+            if (minecraft.screen instanceof TitleScreen) { if (++titleScreenTicks >= 40) openPlayer(minecraft); }
+            else { titleScreenTicks = 0; if (stableClientTicks >= 240) openPlayer(minecraft); }
+        }
         if (uiPhase > 0) exerciseUi(minecraft);
         if (!stopping && stableClientTicks >= 900) throw new IllegalStateException("客户端交互探针未在预算 tick 内完成");
     }
