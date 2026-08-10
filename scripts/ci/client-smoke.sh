@@ -43,10 +43,16 @@ trap - EXIT
 
 combined="$WORK/combined.log"
 cat "$LOG" "$GAME_LOG" 2>/dev/null > "$combined" || cp "$LOG" "$combined"
+if [[ -f "$ROOT/run/ci-ui-rectangles.json" ]]; then
+  cp "$ROOT/run/ci-ui-rectangles.json" "$WORK/ui-rectangles.json"
+else
+  echo "客户端探针没有输出控件矩形审阅文件" >&2
+  exit 1
+fi
 if grep -Eqi 'FATAL|NoClassDefFoundError|Mixin apply (failed|error)|MixinApplyError|crash-report|crash report|Exception in thread' "$combined"; then
   echo "客户端日志含严重错误" >&2; grep -Ein 'FATAL|NoClassDefFoundError|Mixin|crash|Exception in thread' "$combined" >&2 || true; exit 1
 fi
 if find "$ROOT/run" -type f -path '*/crash-reports/*' -print -quit | grep -q .; then
   echo "客户端产生了 crash-report" >&2; exit 1
 fi
-echo "Client smoke 通过：真实 Forge 客户端到达主菜单并由 CI 专用探针正常退出。"
+echo "Client smoke 通过：真实 Forge 客户端完成 Widget 点击探针并正常退出。"

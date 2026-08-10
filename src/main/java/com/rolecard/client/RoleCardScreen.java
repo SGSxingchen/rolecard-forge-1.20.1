@@ -34,10 +34,10 @@ public final class RoleCardScreen extends Screen {
         layout = ArchiveLayout.frame(width, height);
         CharacterCard card = ClientCardCache.card(); observedRevision = card.revision();
         ArchiveLayout.Rect content = layout.content();
-        nameBox = field(content.x() + 48, content.y() + 16, content.width() - 48, "角色名称", card.roleName(), CharacterCard.MAX_TEXT_LENGTH);
-        int half = (content.width() - 4) / 2;
-        ageBox = field(content.x(), content.y() + 52, half, "年龄", String.valueOf(card.age()), 3);
-        genderBox = field(content.x() + half + 4, content.y() + 52, content.width() - half - 4, "性别", card.gender(), CharacterCard.MAX_TEXT_LENGTH);
+        ArchiveLayout.IdentityForm form = ArchiveLayout.identityForm(layout);
+        nameBox = field(form.name().field().x(), form.name().field().y(), form.name().field().width(), "角色名称", card.roleName(), CharacterCard.MAX_TEXT_LENGTH);
+        ageBox = field(form.age().field().x(), form.age().field().y(), form.age().field().width(), "年龄", String.valueOf(card.age()), 3);
+        genderBox = field(form.gender().field().x(), form.gender().field().y(), form.gender().field().width(), "性别", card.gender(), CharacterCard.MAX_TEXT_LENGTH);
         bioBox = new MultiLineBiographyBox(font, content.x(), content.y() + 16, content.width(), Math.max(34, content.height() - 33), Component.literal("输入人物生平；支持换行和滚轮滚动"));
         bioBox.setValue(card.biography()); bioBox.setMaxLength(CharacterCard.MAX_BIOGRAPHY_LENGTH);
         addRenderableWidget(nameBox); addRenderableWidget(ageBox); addRenderableWidget(genderBox); addRenderableWidget(bioBox);
@@ -96,9 +96,18 @@ public final class RoleCardScreen extends Screen {
         if (tooltip != null) g.renderComponentTooltip(font, tooltip, mouseX, mouseY);
     }
     private void renderIdentity(GuiGraphics g, CharacterCard c) {
-        ArchiveLayout.Rect area = ArchiveLayout.inset(layout.content(), 8); ArchiveUi.label(g, font, "身份资料", area.x(), area.y());
-        if (editable()) { ArchiveUi.label(g, font, "名称", area.x(), area.y() + 18); ArchiveUi.label(g, font, "年龄", area.x(), area.y() + 54); ArchiveUi.label(g, font, "性别", area.x() + (area.width() + 4) / 2, area.y() + 54); }
-        else { readLine(g, "名称", c.roleName().isBlank() ? "未填写" : c.roleName(), area.x(), area.y() + 20); readLine(g, "年龄", String.valueOf(c.age()), area.x(), area.y() + 37); readLine(g, "性别", c.gender(), area.x(), area.y() + 54); }
+        ArchiveLayout.IdentityForm form = ArchiveLayout.identityForm(layout); ArchiveUi.label(g, font, "身份资料", form.area().x(), form.area().y());
+        if (editable()) {
+            labelAtBaseline(g, "名称", form.name()); labelAtBaseline(g, "年龄", form.age()); labelAtBaseline(g, "性别", form.gender());
+        } else {
+            readCard(g, "名称", c.roleName().isBlank() ? "未填写" : c.roleName(), form.name());
+            readCard(g, "年龄", String.valueOf(c.age()), form.age()); readCard(g, "性别", c.gender().isBlank() ? "未设定" : c.gender(), form.gender());
+        }
+    }
+    private void labelAtBaseline(GuiGraphics g, String text, ArchiveLayout.FieldRow row) { ArchiveUi.label(g, font, text, row.label().x(), row.baseline()); }
+    private void readCard(GuiGraphics g, String label, String value, ArchiveLayout.FieldRow row) {
+        ArchiveUi.label(g, font, label, row.label().x(), row.baseline()); ArchiveUi.section(g, row.field());
+        g.drawString(font, value, row.field().x() + 4, row.baseline(), ArchiveUi.TEXT, false);
     }
     private void renderBiography(GuiGraphics g, CharacterCard c) {
         ArchiveLayout.Rect area = ArchiveLayout.inset(layout.content(), 8); ArchiveUi.label(g, font, editable() ? "人物生平（支持换行与滚轮）" : "人物生平（只读）", area.x(), area.y());
@@ -201,6 +210,9 @@ public final class RoleCardScreen extends Screen {
     public boolean ciInitializeStatsTooltip() { return !AttributeDisplayFormatter.tooltip(StatType.BULK, 12, 13, false).isEmpty(); }
     /** CI 探针入口：仅切换已有页签，不触碰业务数据。 */
     public void ciShowPage(int value) { showPage(Math.max(0, Math.min(3, value))); }
+    public ArchiveLayout.Rect ciTabBounds(int index) { return layout.tab(index, 4); }
+    public ArchiveLayout.Rect ciIdentityNameBounds() { return ArchiveLayout.identityForm(layout).name().field(); }
+    public String ciIdentityName() { return nameBox.getValue(); }
     public boolean ciLayoutWithinSafeArea() { return layout != null && layout.safe().contains(layout.panel()) && !layout.content().intersects(layout.footer()) && !layout.tabs().intersects(layout.content()); }
     @Override public boolean isPauseScreen() { return false; }
 }

@@ -17,13 +17,13 @@ rows = [
     ("发布包 / mods.toml / modId", "完整自动覆盖", "build：真实 clean/build 后校验唯一 Jar 与元数据"),
     ("资源、JSON/TOML、modId、侧别、网络注册", "完整自动覆盖（静态）", "quality-gates：仅源码/资源解析，不启动 Java"),
     ("Forge 专服加载 rolecard、命令注册、save-all、stop", "完整自动覆盖", "dedicated-server：真实 Forge 47.4.10 专服"),
-    ("单客户端初始化与稳定退出", "完整自动覆盖", "client-smoke：Xvfb + Mesa 的真实 Forge Client"),
+    ("单客户端初始化、真实 Widget 点击与稳定退出", "部分自动覆盖", "client-smoke：Xvfb + Mesa；新增、输入、删除、上限、滚动、保存按钮与客户端回包 Hook，输出矩形 JSON"),
     ("Capability 默认值、NBT 往返与容错", "部分覆盖", "静态结构门禁；尚无 CI 专用 GameTest"),
     ("六维 AttributeModifier 不重复累积", "部分覆盖", "静态检查 removeModifier 后 addPermanentModifier；未做带玩家生命周期实测"),
     ("管理员权限拒绝、恶意越权网络请求", "部分覆盖", "静态检查 requires(permission 2)、C2S 仅取 context sender；未做伪造客户端实测"),
     ("死亡 clone、重连、换维度同步", "部分覆盖", "静态检查对应事件钩子；未做玩家端到端实测"),
     ("聊天 / 头顶 / Tab 三模式", "人工待测", "需要真实玩家观察显示效果"),
-    ("角色卡 UI 交互", "人工待测", "需要输入、保存及非法输入反馈检查"),
+    ("角色卡 UI 交互", "部分自动覆盖", "真客户端 Widget 已覆盖输入、切页、滚动和目标编辑；像素视觉、真实多人 C2S/S2C 时序仍需人工验收"),
     ("双客户端显示一致性", "人工待测", "本轮未加入成本高且易波动的双客户端联机矩阵"),
 ]
 out = Path("ci-artifacts/regression-report.md")

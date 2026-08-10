@@ -28,10 +28,11 @@ public final class AdminRoleCardScreen extends Screen {
 
     public AdminRoleCardScreen(UUID target, String originalName, CompoundTag data) { super(Component.literal("审核档案")); this.target = target; this.originalName = originalName; if (data != null) card.load(data); }
     @Override protected void init() {
-        layout = ArchiveLayout.frame(width, height); ArchiveLayout.Rect c = layout.content();
-        name = field(c.x() + 48, c.y() + 16, c.width() - 48, "角色名称", card.roleName(), CharacterCard.MAX_TEXT_LENGTH);
-        int half = (c.width() - 4) / 2; age = field(c.x(), c.y() + 52, half, "年龄", String.valueOf(card.age()), 3); gender = field(c.x() + half + 4, c.y() + 52, c.width() - half - 4, "性别", card.gender(), CharacterCard.MAX_TEXT_LENGTH);
-        bio = new MultiLineBiographyBox(font, c.x(), c.y() + 78, c.width(), Math.max(30, c.height() - 82), Component.literal("人物生平（支持换行与滚轮）")); bio.setValue(card.biography()); bio.setMaxLength(CharacterCard.MAX_BIOGRAPHY_LENGTH);
+        layout = ArchiveLayout.frame(width, height); ArchiveLayout.Rect c = layout.content(); ArchiveLayout.IdentityForm form = ArchiveLayout.identityForm(layout);
+        name = field(form.name().field().x(), form.name().field().y(), form.name().field().width(), "角色名称", card.roleName(), CharacterCard.MAX_TEXT_LENGTH);
+        age = field(form.age().field().x(), form.age().field().y(), form.age().field().width(), "年龄", String.valueOf(card.age()), 3); gender = field(form.gender().field().x(), form.gender().field().y(), form.gender().field().width(), "性别", card.gender(), CharacterCard.MAX_TEXT_LENGTH);
+        int bioY = form.gender().field().bottom() + ArchiveLayout.GAP;
+        bio = new MultiLineBiographyBox(font, c.x(), bioY, c.width(), Math.max(1, c.bottom() - bioY), Component.literal("人物生平（支持换行与滚轮）")); bio.setValue(card.biography()); bio.setMaxLength(CharacterCard.MAX_BIOGRAPHY_LENGTH);
         points = field(c.x() + 56, c.y() + 16, 60, "剩余点数", String.valueOf(card.availablePoints()), 6);
         for (int i = 0; i < stats.length; i++) { stats[i] = field(0, 0, 44, StatType.values()[i].displayName(), String.valueOf(card.stat(StatType.values()[i])), 3); addRenderableWidget(stats[i]); }
         reason = new MultiLineBiographyBox(font, c.x(), c.y() + 30, c.width(), Math.max(32, c.height() - 30), Component.literal("退回原因（可选，最多 160 字）")); reason.setMaxLength(160);
@@ -67,7 +68,7 @@ public final class AdminRoleCardScreen extends Screen {
         super.render(g, mouseX, mouseY, tick);
         if (tooltip != null) g.renderComponentTooltip(font, tooltip, mouseX, mouseY);
     }
-    private void renderDetails(GuiGraphics g, int x, int y) { ArchiveUi.label(g, font, "原版名：" + originalName + "  UUID：" + shortUuid(), x, y); ArchiveUi.label(g, font, "名称", x, y + 18); ArchiveUi.label(g, font, "年龄", x, y + 54); ArchiveUi.label(g, font, "性别", x + (layout.content().width() + 4) / 2, y + 54); }
+    private void renderDetails(GuiGraphics g, int x, int y) { ArchiveLayout.IdentityForm form = ArchiveLayout.identityForm(layout); ArchiveUi.label(g, font, "原版名：" + originalName + "  UUID：" + shortUuid(), x, y); ArchiveUi.label(g, font, "名称", form.name().label().x(), form.name().baseline()); ArchiveUi.label(g, font, "年龄", form.age().label().x(), form.age().baseline()); ArchiveUi.label(g, font, "性别", form.gender().label().x(), form.gender().baseline()); }
     private List<Component> renderStats(GuiGraphics g, int x, int y, int mouseX, int mouseY) {
         ArchiveUi.label(g, font, "管理员调整（保存后仍由服务端校验）", x, y); ArchiveUi.label(g, font, "剩余点数", x, y + 18);
         int cols = 2, cardW = (layout.content().width() - 4) / 2; List<Component> tooltip = null; ArchiveLayout.Rect viewport = statsViewport(); ArchiveUi.clip(g, viewport);

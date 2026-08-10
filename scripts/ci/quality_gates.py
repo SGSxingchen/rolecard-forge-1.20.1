@@ -223,6 +223,13 @@ def check_client_smoke_probe() -> None:
         '@Mod("rolecard_ci_probe")',
         "MinecraftForge.EVENT_BUS.register(this)",
         'ModList.get().isLoaded("rolecard")',
+        "mouseClicked",
+        "charTyped",
+        "mouseScrolled",
+        "ciAddObjectiveBounds",
+        "ciObjectiveRemoveBounds",
+        "MissionBoardSnapshot.isValidClientTag",
+        "ClientHooks.acceptAdminMission",
         "src/ci",
     )
     for needle in required_probe:
@@ -234,7 +241,10 @@ def check_client_smoke_probe() -> None:
     for needle in ("sourceSets {", "java.srcDir 'src/ci/java'", "ciProbeJar", "into 'run/mods'"):
         if needle not in build:
             fail(f"build.gradle 缺少 CI-only 客户端探针源集配置: {needle}")
-    if "ROLECARD_CI_TITLE_SCREEN_READY" not in client_script or "windowclose" in client_script:
+    for needle in ("ROLECARD_CI_TITLE_SCREEN_READY", "ci-ui-rectangles.json", "ui-rectangles.json"):
+        if needle not in client_script:
+            fail(f"客户端 smoke 缺少真实交互或矩形审阅契约: {needle}")
+    if "windowclose" in client_script:
         fail("客户端 smoke 必须等待主菜单探针且不得直接销毁 X 窗口")
 
 

@@ -3,9 +3,15 @@
 [![Forge 1.20.1 CI](https://github.com/SGSxingchen/rolecard-forge-1.20.1/actions/workflows/ci.yml/badge.svg)](https://github.com/SGSxingchen/rolecard-forge-1.20.1/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/SGSxingchen/rolecard-forge-1.20.1)](https://github.com/SGSxingchen/rolecard-forge-1.20.1/releases/latest)
 
-适用于 **Minecraft 1.20.1 / Forge / Java 17** 的角色身份卡与六维属性模组。v1.2.0 新增服务器全局“世界任务／副本公告”：玩家查看，管理员编辑发布。
+适用于 **Minecraft 1.20.1 / Forge / Java 17** 的角色身份卡与六维属性模组。v1.2.1 修复世界任务目标编辑崩溃与档案界面排版；服务器全局“世界任务／副本公告”支持玩家查看、管理员编辑发布。
 
-> v1.2.0 增加世界任务／副本公告；正式发布仅在该提交的 GitHub Actions 全绿后进行。
+> v1.2.1 修复删除目标后的旧索引回写崩溃；正式发布仅在该提交的 GitHub Actions 全绿后进行。
+
+## v1.2.1 紧急修复
+
+- 管理员任务目标改为稳定行列表，修复删除最后或中间目标后旧索引回写导致的客户端崩溃，并保留其余目标文本。
+- 玩家身份页采用标签—字段网格，任务页成为稳定可见的第四页签；管理员任务支持完成、文本、删除、滚动和上限提示。
+- CI 以真实 Widget 点击覆盖中文／ASCII 输入、新增／删除／再新增、上限、滚动、保存按钮与客户端回包 Hook；完整根因、边界与人工验收见 [v1.2.1紧急修复执行记录](docs/v1.2.1紧急修复执行记录.md)。
 
 ## 一分钟上手：从发点到批准
 

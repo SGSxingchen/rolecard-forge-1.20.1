@@ -127,6 +127,16 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
           path: ci-artifacts/client-smoke
+      - name: 上传界面矩形审阅产物
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-layout-artifacts
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            build/reports/rolecard-ui-rectangles.json
+            ci-artifacts/client-smoke/ui-rectangles.json
 
   regression-report:
     name: 回归报告（必需 Job 全绿）
